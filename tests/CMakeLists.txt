@@ -7,7 +7,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(run_tests test_money.cpp test_roulette_number.cpp test_player.cpp test_casinobank.cpp test_table.cpp)
+add_executable(run_tests test_money.cpp test_roulette_number.cpp test_player.cpp test_casinobank.cpp test_table.cpp test_bet.cpp)
 
 target_link_libraries(run_tests gtest_main core)
 
