@@ -8,6 +8,7 @@
 #include "RouletteWheel.hpp"
 #include "GameSession.hpp"
 #include "Bet.hpp"
+#include "GameJournal.hpp" 
 
 void clearInput() {
     std::cin.clear();
@@ -19,7 +20,6 @@ int main() {
     std::cout << "       СИМУЛЯТОР ЕВРОПЕЙСКОЙ РУЛЕТКИ (v1.0)       \n";
     std::cout << "==================================================\n\n";
 
-    // --- ИНТЕРАКТИВНАЯ НАСТРОЙКА ---
     std::cout << "Введите ваше имя:\n> ";
     std::string playerName;
     std::cin >> playerName;
@@ -31,8 +31,7 @@ int main() {
         std::cout << "Ошибка! Введите положительное число:\n> ";
     }
 
-    std::cout << "Введите начальное значение генератора (seed) для воспроизводимости раундов:\n";
-    std::cout << "(Ввод одного и того же числа даст идентичную последовательность выпадений)\n> ";
+    std::cout << "Введите начальное значение генератора (seed):\n> ";
     unsigned int seed;
     while (!(std::cin >> seed)) {
         clearInput();
@@ -41,14 +40,12 @@ int main() {
     std::cout << "\nНастройка завершена. Загрузка стола...\n\n";
 
     Player player(playerName, Money(initialBalance));
-    CasinoBank bank(Money(1000000)); 
+    CasinoBank bank(Money(1000000));
     Table table(Money(100), Money(10000)); 
     RouletteWheel wheel(seed);
     GameSession session(player, bank, table, wheel);
-
-    std::cout << "=== Добро пожаловать за игровой стол ===\n";
-    std::cout << "Лимиты стола: от " << table.getMinBet().getAmount() 
-              << " до " << table.getMaxBet().getAmount() << "\n\n";
+    
+    GameJournal journal; 
 
     while (true) {
         std::cout << "--------------------------------------------------\n";
@@ -57,7 +54,7 @@ int main() {
         
         if (player.getBalance().getAmount() == 0) {
             std::cout << "Ваш баланс равен нулю. Игра окончена!\n";
-            break;
+            break; 
         }
 
         std::cout << "Выберите действие:\n1. Поставить на цвет (1:1)\n2. Поставить на число (35:1)\n0. Забрать фишки и уйти\n> ";
@@ -65,12 +62,12 @@ int main() {
         int choice;
         if (!(std::cin >> choice)) {
             clearInput();
-            std::cout << "Ошибка ввода. Введите число 0, 1 или 2.\n";
+            std::cout << "Ошибка ввода.\n";
             continue;
         }
 
         if (choice == 0) {
-            std::cout << "Спасибо за игру, " << player.getName() << "! Вы ушли с балансом: " << player.getBalance().getAmount() << "\n";
+            std::cout << "Спасибо за игру! Вы ушли с балансом: " << player.getBalance().getAmount() << "\n";
             break;
         }
 
@@ -88,6 +85,7 @@ int main() {
         }
 
         std::unique_ptr<Bet> currentBet;
+        std::string betDescription; 
 
         try {
             if (choice == 1) {
@@ -97,9 +95,10 @@ int main() {
                     clearInput();
                     throw std::invalid_argument("Неверный выбор цвета.");
                 }
-                
                 RouletteColor selectedColor = (colorChoice == 1) ? RouletteColor::Red : RouletteColor::Black;
                 currentBet = std::make_unique<ColorBet>(Money(betAmount), selectedColor);
+                
+                betDescription = "Цвет: " + std::string(colorChoice == 1 ? "Красное" : "Черное"); 
             } 
             else if (choice == 2) {
                 std::cout << "Введите число (0-36):\n> ";
@@ -109,6 +108,8 @@ int main() {
                     throw std::invalid_argument("Неверный ввод числа.");
                 }
                 currentBet = std::make_unique<NumberBet>(Money(betAmount), numberChoice);
+                
+                betDescription = "Число " + std::to_string(numberChoice);
             }
 
             RouletteNumber winningNumber = session.playRound(*currentBet);
@@ -116,16 +117,27 @@ int main() {
             std::cout << "\n>>> РУЛЕТКА КРУТИТСЯ... Выпало: " 
                       << winningNumber.getValue() << " (" << winningNumber.getColorName() << ") <<<\n";
 
+            Money actualPayout(0);
             if (currentBet->isWinning(winningNumber)) {
-                std::cout << "!!! ПОБЕДА !!! Вы выиграли " << currentBet->calculatePayout().getAmount() << "\n";
+                actualPayout = currentBet->calculatePayout();
+                std::cout << "!!! ПОБЕДА !!! Вы выиграли " << actualPayout.getAmount() << "\n";
             } else {
                 std::cout << "К сожалению, ставка не сыграла.\n";
             }
+
+            journal.addRecord(betDescription, winningNumber, actualPayout, player.getBalance(), bank.getBalance());
 
         } catch (const std::exception& e) {
             std::cerr << "[ОШИБКА] " << e.what() << "\n";
             clearInput();
         }
+    }
+
+    try {
+        journal.saveToFile("casino_journal.csv");
+        std::cout << "\n[УСПЕХ] История игры сохранена в файл 'casino_journal.csv'.\n";
+    } catch (const std::exception& e) {
+        std::cerr << "\n[ОШИБКА СОХРАНЕНИЯ] " << e.what() << "\n";
     }
 
     return 0;

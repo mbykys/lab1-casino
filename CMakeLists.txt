@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
 
-add_library(core src/Money.cpp src/RouletteNumber.cpp src/Player.cpp src/CasinoBank.cpp src/Table.cpp src/Bet.cpp src/RouletteWheel.cpp src/GameSession.cpp)
+add_library(core src/Money.cpp src/RouletteNumber.cpp src/Player.cpp src/CasinoBank.cpp src/Table.cpp src/Bet.cpp src/RouletteWheel.cpp src/GameSession.cpp src/GameJournal.cpp)
 
 add_executable(casino_app main.cpp)
 
